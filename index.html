@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Test PaymentRequests / Apple Pay</title>
+    <style>
+      body {
+        font-family: Arial,Helvetica Neue,Helvetica,sans-serif;
+      }
+
+      pre {
+        font-family: Courier New,Courier,Lucida Sans Typewriter,Lucida Typewriter,monospace;
+        text-align: left;
+      }
+
+      .container {
+        padding: 20px 20px 40px 20px;
+        margin: 10px;
+        border: 1px dashed #808080;
+      }
+
+      .modal {
+        float: left;
+        width: 49%;
+      }
+    </style>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script>
+      // Load the appropriate Publishable Key and Account
+      var ap = {
+        getPublishableKey: function () {
+          url = new URL(window.location.href);
+          pk = url.searchParams.get('pk');
+          return pk;
+        },
+        getAccountId: function () {
+          url = new URL(window.location.href);
+          acc = url.searchParams.get('acc');
+          return acc;
+        },
+        getDomain: function () {
+          return window.location.hostname;
+        },
+        initializeStripe: function() {
+          pk = this.getPublishableKey();
+          acc = this.getAccountId();
+          var stripe = null;
+          if (pk && acc) {
+            // Connect Platform
+            console.log("Initializing connected account w/ key and account: " + pk + " - " + acc);
+            stripe = Stripe(pk, {stripeAccount: acc});
+          }
+          if (pk && !acc) {
+            // Standard Account
+            console.log("Initializing standard account w/ key: " + pk);
+            stripe = Stripe(pk);
+          }
+          if (!pk) {
+            // No publishable key provided
+            console.log("No publishable key has been provided.  Not configuring Stripe yet.");
+          }
+          return stripe;
+        },
+        registerDomain: function(sk, resultElement) {
+
+          if (sk === '' || sk.startsWith('sk_test') || sk.startsWith('pk_')) {
+            resultElement.html('Must provide a LIVE Secret API Key.');
+            return false;
+          }
+
+          var headers = {}
+          headers['Authorization'] = 'Bearer ' + sk;
+          if (this.getAccountId()) {
+            headers['Stripe-Account'] = this.getAccountId();
+          }
+          console.log(this.getDomain());
+          $.ajax({
+            url: 'https://api.stripe.com/v1/apple_pay/domains',
+            data: {domain_name: this.getDomain()},
+            headers: headers,
+            cache: false,
+            type: 'POST',
+          }).done(function(data) {
+            var resp = JSON.stringify(data, null, 2);
+            resultElement.html(resp);
+          }).fail(function(response, type, message) {
+            var resp = JSON.stringify(response.responseJSON, null, 2);
+            resultElement.html(resp);
+          });
+        }
+      }
+    </script>
+    <script>
+    $(document).ready(function() {
+
+      // Populate Publishable Key from querystring
+      var pk = ap.getPublishableKey();
+      if (pk) { $('#pk-input').val(pk); }
+
+      // Populate Account ID from querystring
+      var acc = ap.getAccountId();
+      if (acc) { $('#acc-input').val(acc); }
+
+      // Initialize Stripe
+      var stripe = null;
+      if (pk) {
+        stripe = ap.initializeStripe();
+      }
+
+      var elements = null;
+      var paymentRequest = null;
+      var paymentRequestButton = null;
+      if (stripe) {
+
+        // Setup elements
+        elements = stripe.elements();
+
+        // Configure the payment request
+        paymentRequest = stripe.paymentRequest({
+          country: 'US',
+          currency: 'usd',
+          total: {
+            label: 'Demo total',
+            amount: 1000,
+          },
+          requestPayerName: true,
+          requestPayerEmail: true,
+        });
+
+        // Build a payment request button (not visible)
+        paymentRequestButton = elements.create('paymentRequestButton', {
+          paymentRequest: paymentRequest,
+        });
+
+        paymentRequest.canMakePayment().then(function(result) {
+          if (result) {
+            // Mount the payment request button (visible)
+            paymentRequestButton.mount('#payment-request-button');
+          } else {
+            // Hide the payment request button div (if not supported)
+            $('#payment-request-button').hide();
+            console.log(result);
+          }
+
+        });
+      }
+
+      // Catch domain registration submissions
+      $('#register-domain-form').on('submit', function (e) {
+        e.preventDefault();
+        ap.registerDomain($('#sk-input').val().trim(), $('#register-domain-result'));
+        return false;
+      });
+
+    });
+    </script>
+
+  </head>
+  <body>
+    <div class="container">
+      <div id="account-setup-modal" class="modal">
+        <h3>Reload Page for new Account</h3>
+        <form action="#" method="GET" id="update-page-form">
+          <input type="text" name="pk" id="pk-input">
+          <input type="text" name="acc" id="acc-input">
+          <input type="submit">
+        </form>
+      </div>
+      <div id="register-domain-modal" class="modal">
+        <h3>Register Domain on Account</h3>
+        <form action="#" method="POST" id="register-domain-form">
+          <input type="password" id="sk-input">
+          <input type="submit">
+        </form>
+        <pre id="register-domain-result"></pre>
+      </div>
+      <div style="clear: both; display: block;"></div>
+    </div>
+    <div class="container">
+      <h3>Payment Request Button</h3>
+      <div id="payment-request-button">
+      <!-- A Stripe Element will be inserted here. -->
+      </div>
+    </div>
+  </body>
+</html>
