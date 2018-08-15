@@ -11,6 +11,11 @@
       pre {
         font-family: Courier New,Courier,Lucida Sans Typewriter,Lucida Typewriter,monospace;
         text-align: left;
+        white-space: pre-wrap;       /* Since CSS 2.1 */
+        white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+        white-space: -pre-wrap;      /* Opera 4-6 */
+        white-space: -o-pre-wrap;    /* Opera 7 */
+        word-wrap: break-word;
       }
 
       .container {
@@ -48,17 +53,17 @@
           var stripe = null;
           if (pk && acc) {
             // Connect Platform
-            console.log("Initializing connected account w/ key and account: " + pk + " - " + acc);
+            $('#account-setup-result').html("Initializing connected account w/ key and account: " + pk + " - " + acc);
             stripe = Stripe(pk, {stripeAccount: acc});
           }
           if (pk && !acc) {
             // Standard Account
-            console.log("Initializing standard account w/ key: " + pk);
+            $('#account-setup-result').html("Initializing standard account w/ key: " + pk);
             stripe = Stripe(pk);
           }
           if (!pk) {
             // No publishable key provided
-            console.log("No publishable key has been provided.  Not configuring Stripe yet.");
+            $('#account-setup-result').html("No publishable key has been provided.  Not configuring Stripe yet.");
           }
           return stripe;
         },
@@ -96,11 +101,11 @@
 
       // Populate Publishable Key from querystring
       var pk = ap.getPublishableKey();
-      if (pk) { $('#pk-input').val(pk); }
+      if (pk !== '' && pk !== null) { $('#pk-input').val(pk); }
 
       // Populate Account ID from querystring
       var acc = ap.getAccountId();
-      if (acc) { $('#acc-input').val(acc); }
+      if (acc !== '' && acc !== null) { $('#acc-input').val(acc); }
 
       // Initialize Stripe
       var stripe = null;
@@ -162,15 +167,16 @@
       <div id="account-setup-modal" class="modal">
         <h3>Reload Page for new Account</h3>
         <form action="#" method="GET" id="update-page-form">
-          <input type="text" name="pk" id="pk-input">
-          <input type="text" name="acc" id="acc-input">
+          <input type="text" name="pk" id="pk-input" placeholder="pk_test_xxx">
+          <input type="text" name="acc" id="acc-input" placeholder="acct_xxx (optional)">
           <input type="submit">
         </form>
+        <pre id="account-setup-result"></pre>
       </div>
       <div id="register-domain-modal" class="modal">
         <h3>Register Domain on Account</h3>
         <form action="#" method="POST" id="register-domain-form">
-          <input type="password" id="sk-input">
+          <input type="password" id="sk-input" placeholder="sk_live_xxx">
           <input type="submit">
         </form>
         <pre id="register-domain-result"></pre>
